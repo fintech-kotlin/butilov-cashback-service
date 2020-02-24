@@ -4,5 +4,5 @@ import ru.tinkoff.fintech.model.NotificationMessageInfo
 
 interface NotificationMessageGenerator {
 
-    fun generateMessage(notificationMessageInfo: NotificationMessageInfo): String
+    fun generateMessage(messageInfo: NotificationMessageInfo): String
 }
