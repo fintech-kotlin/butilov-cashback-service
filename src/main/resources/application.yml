@@ -5,10 +5,12 @@ spring:
     username: kotlin_master
     password: koklin
 
-#paimentprocessing:
-#  kafka:
-#    consumer:
-#      bootstrapServers: ${spring.embedded.kafka.brokers}
-#      groupId: testGroup
-#      topic: testTopic
+kafka:
+  consumer:
+    bootstrap-servers: 40.69.78.245:19092
+    topic: transactions
+    group-id: cashback
+    value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    properties:
+      request.timeout.ms: 10000
 
