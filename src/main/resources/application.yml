@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://tinkoff-kotlin-psql-1.postgres.database.azure.com:5432/fintech?currentSchema=cashback
+    username: kotlin_master
+    password: koklin
+
+#paimentprocessing:
+#  kafka:
+#    consumer:
+#      bootstrapServers: ${spring.embedded.kafka.brokers}
+#      groupId: testGroup
+#      topic: testTopic
+
