@@ -1,24 +1,27 @@
 package ru.tinkoff.fintech.client
 
+import mu.KotlinLogging
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.*
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 
 @Service
-class NotificationServiceClientImpl : NotificationServiceClient {
+class NotificationServiceClientImpl(
+    @Value("\${service.notification.url}")
+    private val url: String,
+    private val restTemplate: RestTemplate
+) : NotificationServiceClient {
+
+    companion object {
+        private val logger = KotlinLogging.logger { }
+    }
+
     override fun sendNotification(clientId: String, message: String) {
-        val restTemplate = RestTemplate()
-
-        val uri = "http://13.79.17.165/notification-service/api/v1/client/${clientId}/message"
-
-        val headers = HttpHeaders()
-        headers.accept = listOf(MediaType.APPLICATION_JSON)
-        val entity = HttpEntity(message, headers)
-
-        val result = restTemplate.exchange(uri, HttpMethod.POST, entity, String::class.java)
-        val statusCode = result.statusCode
+        val response = restTemplate.postForEntity(url, String::class.java, String::class.java, mapOf("clientId" to clientId))
+        val statusCode = response.statusCode
         if (statusCode != HttpStatus.OK) {
-            println("Client error. Http status code $statusCode")
+            logger.error("Client error. Http status code $statusCode")
         }
     }
 }

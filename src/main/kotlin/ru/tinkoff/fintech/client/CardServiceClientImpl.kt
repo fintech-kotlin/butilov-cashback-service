@@ -1,28 +1,30 @@
 package ru.tinkoff.fintech.client
 
+import mu.KotlinLogging
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.*
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import ru.tinkoff.fintech.model.Card
 
 @Service
-class CardServiceClientImpl : CardServiceClient {
+class CardServiceClientImpl(
+    @Value("\${service.card.url}")
+    private val url: String,
+    private val restTemplate: RestTemplate
+) : CardServiceClient {
+
+    companion object {
+        private val logger = KotlinLogging.logger { }
+    }
 
     override fun getCard(id: String): Card {
-        val restTemplate = RestTemplate()
-
-        val uri = "http://13.79.17.165/card-service/api/v1/card/${id}"
-
-        val headers = HttpHeaders()
-        headers.accept = listOf(MediaType.APPLICATION_JSON)
-        val entity = HttpEntity("", headers)
-
-        val result = restTemplate.exchange(uri, HttpMethod.GET, entity, Card::class.java)
-        val statusCode = result.statusCode
+        val response = restTemplate.getForEntity(url, Card::class.java, mapOf("id" to id))
+        val statusCode = response.statusCode
         if (statusCode != HttpStatus.OK) {
-            println("Client error. Http status code $statusCode")
+            logger.error("Client error. Http status code $statusCode")
         }
-        return result.body!!
+        return response.body!!
     }
 
 }
