@@ -1,6 +1,9 @@
 package ru.tinkoff.fintech.service.notification
 
-class CardNumberMaskerImpl: CardNumberMasker {
+import org.springframework.stereotype.Service
+
+@Service
+class CardNumberMaskerImpl : CardNumberMasker {
 
     override fun mask(cardNumber: String, maskChar: Char, start: Int, end: Int): String {
         if (start > end) throw Exception("Start index cannot be greater than end index")

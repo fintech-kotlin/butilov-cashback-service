@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ****
+    username: kotlin_master
+    password: ****
+
+kafka:
+  consumer:
+    bootstrap-servers: 40.69.78.245:19092
+    topic: transactions
+    group-id: cashback
+    value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    properties:
+      request.timeout.ms: 10000
+
+service:
+  client:
+    url: http://****/client-service/api/v1/client/{id}
+  card:
+    url: http://****/card-service/api/v1/card/{id}
+  loyalty:
+    url: http://****/loyalty-service/api/v1/program/{id}
+  notification:
+    url: http://****/notification-service/api/v1/client/{clientId}/message
+
+
