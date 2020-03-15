@@ -14,3 +14,14 @@ kafka:
     properties:
       request.timeout.ms: 10000
 
+service:
+  client:
+    url: http://13.79.17.165/client-service/api/v1/client/{id}
+  card:
+    url: http://13.79.17.165/card-service/api/v1/card/{id}
+  loyalty:
+    url: http://13.79.17.165/loyalty-service/api/v1/program/{id}
+  notification:
+    url: http://13.79.17.165/notification-service/api/v1/client/{clientId}/message
+
+

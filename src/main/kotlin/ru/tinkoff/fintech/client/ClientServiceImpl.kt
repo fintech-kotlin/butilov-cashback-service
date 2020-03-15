@@ -1,26 +1,29 @@
 package ru.tinkoff.fintech.client
 
-import org.springframework.http.*
+import mu.KotlinLogging
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import ru.tinkoff.fintech.model.Client
 
 @Service
-class ClientServiceImpl : ClientService {
+class ClientServiceImpl(
+    @Value("\${service.client.url}")
+    private val url: String,
+    private val restTemplate: RestTemplate
+) : ClientService {
+
+    companion object {
+        private val logger = KotlinLogging.logger { }
+    }
+
     override fun getClient(id: String): Client {
-        val restTemplate = RestTemplate()
-
-        val uri = "http://13.79.17.165/client-service/api/v1/client/${id}"
-
-        val headers = HttpHeaders()
-        headers.accept = listOf(MediaType.APPLICATION_JSON)
-        val entity = HttpEntity("", headers)
-
-        val result = restTemplate.exchange(uri, HttpMethod.GET, entity, Client::class.java)
-        val statusCode = result.statusCode
+        val response = restTemplate.getForEntity(url, Client::class.java, mapOf("id" to id))
+        val statusCode = response.statusCode
         if (statusCode != HttpStatus.OK) {
-            println("Client error. Http status code $statusCode")
+            logger.error("Client error. Http status code $statusCode")
         }
-        return result.body!!
+        return response.body!!
     }
 }
