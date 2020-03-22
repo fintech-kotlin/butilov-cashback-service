@@ -4,5 +4,5 @@ import ru.tinkoff.fintech.model.Client
 
 interface ClientService {
 
-    fun getClient(id: String): Client
+    suspend fun getClient(id: String): Client
 }

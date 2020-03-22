@@ -18,7 +18,7 @@ class ClientServiceImpl(
         private val logger = KotlinLogging.logger { }
     }
 
-    override fun getClient(id: String): Client {
+    override suspend fun getClient(id: String): Client {
         val response = restTemplate.getForEntity(url, Client::class.java, mapOf("id" to id))
         val statusCode = response.statusCode
         if (statusCode != HttpStatus.OK) {

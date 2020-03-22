@@ -4,5 +4,5 @@ import ru.tinkoff.fintech.model.LoyaltyProgram
 
 interface LoyaltyServiceClient {
 
-    fun getLoyaltyProgram(id: String): LoyaltyProgram
+    suspend fun getLoyaltyProgram(id: String): LoyaltyProgram
 }

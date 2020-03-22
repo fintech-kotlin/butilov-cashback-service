@@ -1,5 +1,8 @@
 package ru.tinkoff.fintech.service.transaction
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.springframework.stereotype.Service
 import ru.tinkoff.fintech.client.CardServiceClient
 import ru.tinkoff.fintech.client.ClientService
@@ -10,6 +13,7 @@ import ru.tinkoff.fintech.model.*
 import ru.tinkoff.fintech.service.cashback.CashbackCalculator
 import ru.tinkoff.fintech.service.notification.NotificationService
 import java.time.LocalDateTime
+import java.time.LocalDateTime.now
 
 @Service
 class TransactionServiceImpl(
@@ -21,59 +25,46 @@ class TransactionServiceImpl(
     private val loyaltyPaymentRepository: LoyaltyPaymentRepository
 ) : TransactionService {
 
-    override fun handle(transaction: Transaction) {
+    override fun handle(transaction: Transaction) = runBlocking {
         val card = cardServiceClient.getCard(transaction.cardNumber)
-        val client = clientService.getClient(card.client)
+        val clientTask = async {
+            clientService.getClient(card.client)
+        }
+
         val loyaltyProgram = loyaltyServiceClient.getLoyaltyProgram(card.loyaltyProgram)
 
+        val client = clientTask.await()
         val cashback = calculateCashBack(loyaltyProgram, transaction, client)
-        val time = LocalDateTime.now()
-        saveLoyaltyPayment(cashback, card, transaction, time)
-        sendNotification(card, cashback, transaction, loyaltyProgram, time, client)
+
+        val transactionData = TransactionData(transaction, card, cashback)
+        launch {
+            saveLoyaltyPayment(transactionData)
+        }
+        sendNotification(transactionData, loyaltyProgram, client)
     }
 
-    private fun sendNotification(
-        card: Card,
-        cashback: Double,
-        transaction: Transaction,
-        loyaltyProgram: LoyaltyProgram,
-        localDateTime: LocalDateTime,
-        client: Client
-    ) {
-        val notificationMessageInfo = NotificationMessageInfo(
-            client.firstName!!,
-            card.cardNumber,
-            cashback,
-            transaction.value,
-            loyaltyProgram.name,
-            localDateTime
-        )
-        notificationService.sendNotification(client.id, notificationMessageInfo)
+    private fun sendNotification(transactionData: TransactionData, loyaltyProgram: LoyaltyProgram, client: Client) {
+        with(transactionData) {
+            NotificationMessageInfo(
+                client.firstName!!, card.cardNumber, cashback, transaction.value, loyaltyProgram.name, time
+            ).also {
+                notificationService.sendNotification(client.id, it)
+            }
+        }
     }
 
-    private fun saveLoyaltyPayment(
-        cashback: Double,
-        card: Card,
-        transaction: Transaction,
-        localDateTime: LocalDateTime
-    ) {
-        val loyaltyPaymentEntity = LoyaltyPaymentEntity(
-            0,
-            cashback,
-            card.cardNumber,
-            "three hundred bucks",
-            transaction.transactionId,
-            localDateTime
-        )
-        loyaltyPaymentRepository.save(loyaltyPaymentEntity)
+    private suspend fun saveLoyaltyPayment(transactionData: TransactionData) {
+        with(transactionData) {
+            LoyaltyPaymentEntity(
+                0, cashback, card.cardNumber, sign, transaction.transactionId, time
+            ).also {
+                loyaltyPaymentRepository.save(it)
+            }
+        }
     }
 
-    private fun calculateCashBack(
-        loyaltyProgram: LoyaltyProgram,
-        transaction: Transaction,
-        client: Client
-    ): Double {
-        val transactionInfo = TransactionInfo(
+    private fun calculateCashBack(loyaltyProgram: LoyaltyProgram, transaction: Transaction, client: Client): Double {
+        TransactionInfo(
             loyaltyProgram.name,
             transaction.value,
             3000.0, // todo где взять?
@@ -82,9 +73,19 @@ class TransactionServiceImpl(
             client.firstName!!,
             client.lastName!!,
             client.middleName
-        )
+        ).also {
+            return cashbackCalculator.calculateCashback(it)
+        }
+    }
 
-        val cashback = cashbackCalculator.calculateCashback(transactionInfo)
-        return cashback
+    companion object {
+        private const val sign = "not compile time const"
+
+        private data class TransactionData(
+            val transaction: Transaction,
+            val card: Card,
+            val cashback: Double,
+            val time: LocalDateTime = now()
+        )
     }
 }

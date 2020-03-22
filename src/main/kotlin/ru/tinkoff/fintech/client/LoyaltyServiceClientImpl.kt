@@ -19,7 +19,7 @@ class LoyaltyServiceClientImpl(
         private val logger = KotlinLogging.logger { }
     }
 
-    override fun getLoyaltyProgram(id: String): LoyaltyProgram {
+    override suspend fun getLoyaltyProgram(id: String): LoyaltyProgram {
         val response = restTemplate.getForEntity(url, LoyaltyProgram::class.java, mapOf("id" to id))
         val statusCode = response.statusCode
         if (statusCode != HttpStatus.OK) {
