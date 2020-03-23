@@ -1,8 +1,7 @@
 package ru.tinkoff.fintech.service.transaction
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import mu.KotlinLogging
 import org.springframework.stereotype.Service
 import ru.tinkoff.fintech.client.CardServiceClient
 import ru.tinkoff.fintech.client.ClientService
@@ -22,25 +21,30 @@ class TransactionServiceImpl(
     private val loyaltyServiceClient: LoyaltyServiceClient,
     private val cashbackCalculator: CashbackCalculator,
     private val notificationService: NotificationService,
-    private val loyaltyPaymentRepository: LoyaltyPaymentRepository
+    private val loyaltyPaymentRepository: LoyaltyPaymentRepository,
+    private val coroutineDispatcher: CoroutineDispatcher
 ) : TransactionService {
 
-    override fun handle(transaction: Transaction) = runBlocking {
-        val card = cardServiceClient.getCard(transaction.cardNumber)
+    override fun handle(transaction: Transaction) = try {
+        runBlocking(coroutineDispatcher) {
+            val card = cardServiceClient.getCard(transaction.cardNumber)
 
-        val selectAllProgramsFromDbTask = async { findPossibleCashback(card) }
-        val getClientHttpCallTask = async { clientService.getClient(card.client) }
-        val loyaltyProgram = loyaltyServiceClient.getLoyaltyProgram(card.loyaltyProgram)
+            val selectAllProgramsFromDbTask = async { findPossibleCashback(card) }
+            val getClientHttpCallTask = async { clientService.getClient(card.client) }
+            val loyaltyProgram = loyaltyServiceClient.getLoyaltyProgram(card.loyaltyProgram)
 
-        val client = getClientHttpCallTask.await()
-        val totalCashback = selectAllProgramsFromDbTask.await()
-        val cashback = calculateCashback(loyaltyProgram, totalCashback, client, transaction)
+            val client = getClientHttpCallTask.await()
+            val totalCashback = selectAllProgramsFromDbTask.await()
+            val cashback = calculateCashback(loyaltyProgram, totalCashback, client, transaction)
 
-        val transactionData = TransactionData(transaction, card, cashback)
-        launch {
-            saveLoyaltyPayment(transactionData)
+            val transactionData = TransactionData(transaction, card, cashback)
+            launch {
+                saveLoyaltyPayment(transactionData)
+            }
+            sendNotification(transactionData, loyaltyProgram, client)
         }
-        sendNotification(transactionData, loyaltyProgram, client)
+    } catch (ex: Exception) {
+        logger.error("transaction handling error", ex)
     }
 
     private suspend fun findPossibleCashback(card: Card): Double {
@@ -93,6 +97,8 @@ class TransactionServiceImpl(
 
     companion object {
         private const val sign = "i'am not a compile-time constant"
+
+        private val logger = KotlinLogging.logger { }
 
         private data class TransactionData(
             val transaction: Transaction,

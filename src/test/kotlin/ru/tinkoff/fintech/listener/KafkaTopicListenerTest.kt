@@ -1,6 +1,7 @@
 package ru.tinkoff.fintech.listener
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.junit.Assert.assertEquals
@@ -81,7 +82,7 @@ internal class MyTestClass {
     }
 
     @Test
-    fun testReceive() = runBlocking {
+    fun testReceive() = runBlocking(Dispatchers.Default) {
         Mockito.`when`(cardService.getCard(anyString())).thenReturn(card)
         Mockito.`when`(clientService.getClient(anyString())).thenReturn(client)
         Mockito.`when`(loyaltyService.getLoyaltyProgram(anyString())).thenReturn(loyalty)

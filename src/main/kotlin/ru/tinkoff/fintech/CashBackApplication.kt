@@ -1,5 +1,6 @@
 package ru.tinkoff.fintech
 
+import kotlinx.coroutines.Dispatchers
 import org.springframework.boot.Banner
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -26,4 +27,11 @@ class RestConfiguration {
         .setConnectTimeout(Duration.ofMillis(3000))
         .setReadTimeout(Duration.ofMillis(3000))
         .build()
+}
+
+@Configuration
+class RuntimeConfiguration {
+
+    @Bean
+    fun coroutineDispatcher() = Dispatchers.Default
 }
