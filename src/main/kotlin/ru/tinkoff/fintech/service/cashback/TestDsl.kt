@@ -30,7 +30,7 @@ class Conditions {
             }
             Conjunction -> {
                 for (condition in conditions) {
-                    if (transaction.condition()) return false
+                    if (!transaction.condition()) return false
                 }
                 return true
             }
@@ -44,17 +44,23 @@ class Award {
     var money: Double? = null
 }
 
+interface Calculator {
+    fun calculate(transaction: Transaction): Double
+}
+
 @RuleDsl
-class Rule(val ruleName: String) {
+class Rule(val ruleName: String) : Calculator {
 
     private val conditions = Conditions()
     private val award: Award = Award()
 
     fun conditions(c: Conditions.() -> Unit) = conditions.also(c)
 
+    fun condition(cond: Condition) = conditions.condition(cond)
+
     fun award(a: Award.() -> Unit) = award.also(a)
 
-    fun calculate(transaction: Transaction): Double {
+    override fun calculate(transaction: Transaction): Double {
         if (conditions.areMet(transaction)) {
             award.percent?.let {
                 return it * transaction.transactionSum
@@ -67,94 +73,63 @@ class Rule(val ruleName: String) {
     }
 }
 
-fun rule(create: Rule.() -> Unit) = rule("", create)
+@RuleDsl
+open class Group : Calculator {
 
-fun rule(ruleName: String, create: Rule.() -> Unit) = Rule(ruleName).also(create)
+    var operation: Operation = Disjunctive
 
-fun main() {
+    var condition: Condition? = null
 
-    val rule = rule("666 Award") {
-        conditions {
-            operation = Conjunction
-            condition { transactionSum % 666.0 == 0.0 }
-            condition { cashbackTotalValue > 0.0 }
-        }
-        award {
-            money = 6.66
-        }
+    private val rules = mutableListOf<Rule>()
+    private val groups = mutableListOf<Group>()
+
+    fun rule(create: Rule.() -> Unit) = rule("", create).also(rules::add)
+
+    fun rule(ruleName: String, create: Rule.() -> Unit) = Rule(ruleName).also(create).also(rules::add)
+
+    fun group(create: Group.() -> Unit) = Group().also(create).also(groups::add)
+
+    fun condition(cond: Condition) {
+        condition = cond
     }
 
+    override fun calculate(transaction: Transaction): Double {
 
-    val transaction = TransactionInfo(
-        "", 6660.0, 0.0,
-        1, null, "", "", ""
-    )
-    println(rule.calculate(transaction))
+        condition?.let {
+            if (transaction.it().not()) {
+                return 0.0
+            }
+        }
 
+        if (rules.isNotEmpty() && groups.isEmpty()) {
+            calcByOperation(transaction, rules)
+        }
+        if (groups.isNotEmpty() && rules.isEmpty()) {
+            calcByOperation(transaction, groups)
+        }
+        return 0.0
+    }
+
+    private fun <T : Calculator> calcByOperation(transaction: Transaction, calcList: MutableList<out T>): Double {
+        when (operation) {
+            Disjunctive -> {
+                var money = 0.0
+                for (calculator in calcList) {
+                    money += calculator.calculate(transaction)
+                }
+                return money
+            }
+            Conjunction -> {
+                for (calculator in calcList) {
+                    val money = calculator.calculate(transaction)
+                    if (money != 0.0) return money
+                }
+                return 0.0
+            }
+        }
+    }
 }
 
+class CashbackRules: Group()
 
-/*
-  val rules = cashbackRules {
-     check = all
-     group {
-        rule {
-            condition { transactionSum % 666.0 == 0.0 }
-            award {
-                money = 6.66
-            }
-        }
-     }
-     group {
-        group {
-            rule {
-                 condition { loyaltyProgramName == LOYALTY_PROGRAM_BLACK }
-                 award {
-                     percent = 0.01
-                 }
-             }
-             rule {
-                 check = all
-                 condition { mccCode == MCC_SOFTWARE }
-                 condition { loyaltyProgramName == LOYALTY_PROGRAM_ALL }
-                 condition { isCustomPalindrome(transactionSum) }
-                 award {
-                     percent = nok(firstName.length, lastName.length) / 100000.0
-                 }
-             }
-        }
-        group {
-            condition { loyaltyProgramName == LOYALTY_PROGRAM_BEER }
-            rule {
-                check = all
-                condition { firstName == "олег"}
-                condition { lastName == "олегов"}
-                award {
-                    percent = 0.1
-                }
-            }
-            rule {
-                condition { firstName == "олег" }
-                award {
-                    percent = 0.07
-                }
-            }
-            rule {
-                condition { firstName[0] == monthValueToFirstRusLetterMap[now().month.value] }
-                award {
-                    percent = 0.05
-                }
-            }
-            rule {
-                condition { firstName[0] == monthValueToFirstRusLetterMap[now().month.minus(1).value] }
-                condition { firstName[0] == monthValueToFirstRusLetterMap[now().month.plus(1).value] }
-                award {
-                    percent = 0.03
-                }
-            }
-        }
-  }
-
-  val cashback = rules.calculate(transactionInfo)
-
- */
+fun cashbackRules(create: CashbackRules.() -> Unit) = CashbackRules().also(create)

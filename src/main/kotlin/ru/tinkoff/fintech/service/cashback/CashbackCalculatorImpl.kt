@@ -33,11 +33,71 @@ class CashbackCalculatorImpl : CashbackCalculator {
             DECEMBER.value to 'д'
         )
     }
+    val rules = cashbackRules {
+        group {
+            rule {
+                condition { transactionSum % 666.0 == 0.0 }
+                award {
+                    money = 6.66
+                }
+            }
+        }
+        group {
+            group {
+                rule {
+                    condition { loyaltyProgramName == LOYALTY_PROGRAM_BLACK }
+                    award {
+                        percent = 0.01
+                    }
+                }
+                rule {
+                    condition { mccCode == MCC_SOFTWARE }
+                    condition { loyaltyProgramName == LOYALTY_PROGRAM_ALL }
+                    condition { isCustomPalindrome(transactionSum) }
+                    award {
+                        percent = nok(firstName.length, lastName.length) / 100000.0
+                    }
+                }
+            }
+            group {
+                condition { loyaltyProgramName == LOYALTY_PROGRAM_BEER }
+                rule {
+                    conditions {
+                        operation = Conjunction
+                        condition { firstName == "олег" }
+                        condition { lastName == "олегов" }
+                    }
+                    award {
+                        percent = 0.1
+                    }
+                }
+                rule {
+                    condition { firstName == "олег" }
+                    award {
+                        percent = 0.07
+                    }
+                }
+                rule {
+                    condition { firstName[0] == monthValueToFirstRusLetterMap[now().month.value] }
+                    award {
+                        percent = 0.05
+                    }
+                }
+                rule {
+                    condition { firstName[0] == monthValueToFirstRusLetterMap[now().month.minus(1).value] }
+                    condition { firstName[0] == monthValueToFirstRusLetterMap[now().month.plus(1).value] }
+                    award {
+                        percent = 0.03
+                    }
+                }
+            }
+        }
+    }
 
     override fun calculateCashback(transactionInfo: TransactionInfo): Double {
         val possibleCashback = MAX_CASH_BACK - transactionInfo.cashbackTotalValue
         return if (possibleCashback != 0.0) {
-            val cashback = calculate(transactionInfo)
+            val cashback = rules.calculate(transactionInfo)
             if (possibleCashback <= cashback) possibleCashback else cashback
         } else {
             0.0
